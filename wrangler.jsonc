@@ -1,0 +1,15 @@
+{
+  "name": "uglink-nav",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+  "rules": [
+    { "type": "Text", "globs": ["**/*.txt"] }
+  ],
+  "kv_namespaces": [
+    { "binding": "CONFIG", "id": "REPLACE_WITH_YOUR_KV_NAMESPACE_ID" }
+  ],
+  "routes": [
+    { "pattern": "nav.example.com", "custom_domain": true }
+  ]
+}
