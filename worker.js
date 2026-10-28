@@ -328,7 +328,7 @@ async function verifyPassword(password, env) {
 const STYLE = `
 :root{color-scheme:dark;--ink:#f4f6fb;--muted:rgba(235,240,255,.55);--line:rgba(255,255,255,.14)}
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%}
+html,body{margin:0;min-height:100%;overflow-x:hidden}
 body{background:#05060a;color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 a{color:inherit}
 #root{position:relative;min-height:100vh;min-height:100dvh;display:grid;grid-template-rows:auto auto;align-content:start;gap:14px;padding:16px;max-width:980px;margin:0 auto}
@@ -422,19 +422,34 @@ img.ico{border-radius:12px}
 .settings-section{border-top:1px solid var(--line);margin-top:24px;padding-top:5px}
 .section-title{font-size:14px;margin:18px 0 2px;font-weight:600}
 @media (max-width:520px){
-  #root{padding:12px;gap:12px}
-  .panel > .inner{padding:18px}
-  .grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
-  .tile{min-height:104px;border-radius:18px}
+  #root{padding:12px;padding-top:max(12px,env(safe-area-inset-top));padding-bottom:max(20px,env(safe-area-inset-bottom));gap:12px}
+  .bar > .inner{gap:8px;padding:10px 12px;min-height:56px}
+  .brand{font-size:11px;letter-spacing:.12em}
+  .bar h1{font-size:14px!important}
+  .act{min-height:36px;padding:7px 11px}
+  .panel{border-radius:22px}
+  .panel > .inner{padding:18px 16px}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .tile{min-height:132px;padding:20px 12px 16px;border-radius:18px;gap:9px}
+  .tile .nm{width:100%;font-size:14px;line-height:1.4;overflow-wrap:anywhere;word-break:normal}
   .row{grid-template-columns:48px 1fr 84px 40px;gap:8px}
+  .overview{gap:10px;margin-bottom:18px}
   .overview h2{font-size:23px}
-  .overview{align-items:start}
-  .overview .btn{flex:none;padding:10px 12px}
-  .toolbar{margin-bottom:14px}
+  .overview .sub{font-size:12px;line-height:1.5}
+  .overview .btn{flex:none;min-height:42px;padding:10px 12px;font-size:13px}
+  .toolbar{flex-wrap:wrap;gap:7px;margin-bottom:12px}
+  .search{flex-basis:100%}
+  .search input{min-height:44px;font-size:16px}
+  .count{margin-left:auto}
+  .filter{min-height:36px;padding:7px 14px}
   .tile .port{display:none}
-  .menu-toggle{opacity:1}
+  .menu-toggle{width:34px;height:34px;opacity:1}
+  .menu-popover{top:36px}
+  .modal{max-height:calc(100dvh - 24px);overflow-y:auto}
   .form-grid{grid-template-columns:1fr;gap:0}
+  .modal input{font-size:16px}
 }
+@media (max-width:360px){.overview{align-items:stretch;flex-direction:column}.overview .btn{align-self:flex-start}.bar .brand{display:none}}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 `;
 
@@ -444,6 +459,7 @@ function escapeHtml(value) {
 
 const BAR_CONFIG = '{"cornerRadius":22,"zRadius":18,"blurAmount":0.42,"refraction":0.65,"chromAberration":0.06,"edgeHighlight":0.12,"specular":0.32,"fresnel":0.95,"saturation":0.08,"tintStrength":0.16,"shadowOpacity":0.24}';
 const PANEL_CONFIG = '{"cornerRadius":26,"zRadius":34,"blurAmount":0.5,"refraction":0.78,"chromAberration":0.09,"edgeHighlight":0.14,"specular":0.4,"fresnel":1,"saturation":0.12,"tintStrength":0.2,"shadowOpacity":0.3}';
+const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="8" y1="6" x2="56" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#7da5ff"/><stop offset="1" stop-color="#4a7bf0"/></linearGradient></defs><rect width="64" height="64" rx="17" fill="#0c1224"/><rect x="3" y="3" width="58" height="58" rx="15" fill="url(#g)"/><path d="M17 18v19c0 8 6 12 15 12s15-4 15-12V18h-9v19c0 3-2 5-6 5s-6-2-6-5V18z" fill="white"/><circle cx="47" cy="17" r="5" fill="#a5f3df"/></svg>`;
 
 const INIT_SCRIPT = `<script type="module">
 const root = document.getElementById('root');
@@ -458,7 +474,7 @@ try {
 </script>`;
 
 function layout(title, bodyHtml, actions = '') {
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#05060a"><title>${title}</title><style>${STYLE}</style></head>
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#05060a"><meta name="application-name" content="UGLINK"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/favicon.svg"><title>UGLINK · ${title}</title><style>${STYLE}</style></head>
 <body><div id="root">
 <div class="bg"></div>
 <header class="glass bar" data-config='${BAR_CONFIG}'><div class="inner"><span class="brand">UGLINK</span><h1 style="font-size:15px;margin:0 0 0 2px;font-weight:600">${title}</h1><span class="spacer"></span>${actions}</div></header>
@@ -695,6 +711,9 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/health') return new Response('ok');
+    if (url.pathname === '/favicon.svg' || url.pathname === '/favicon.ico') {
+      return new Response(FAVICON, { headers: { 'Content-Type': 'image/svg+xml; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } });
+    }
     if (url.pathname === '/liquidglass.js') {
       return new Response(LG_SOURCE, { headers: { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } });
     }
