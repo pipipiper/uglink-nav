@@ -1,0 +1,15 @@
+{
+  "name": "uglink-nav",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A Cloudflare Workers navigation page for UGREEN NAS applications",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "node --check worker.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.154.0"
+  }
+}
