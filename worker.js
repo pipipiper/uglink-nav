@@ -468,8 +468,8 @@ const MANIFEST = JSON.stringify({
   background_color: '#05060a',
   theme_color: '#05060a',
   icons: [
-    { src: '/icon-180.png', sizes: '180x180', type: 'image/png' },
-    { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }
+    { src: '/icon-180.png?v=2', sizes: '180x180', type: 'image/png' },
+    { src: '/icon-512.png?v=2', sizes: '512x512', type: 'image/png' }
   ]
 });
 
@@ -480,7 +480,7 @@ function binaryFromB64(b64, type) {
   return new Response(bytes, { headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=604800' } });
 }
 
-const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="8" y1="6" x2="56" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#7da5ff"/><stop offset="1" stop-color="#4a7bf0"/></linearGradient></defs><rect width="64" height="64" rx="17" fill="#0c1224"/><rect x="3" y="3" width="58" height="58" rx="15" fill="url(#g)"/><path d="M17 18v19c0 8 6 12 15 12s15-4 15-12V18h-9v19c0 3-2 5-6 5s-6-2-6-5V18z" fill="white"/><circle cx="47" cy="17" r="5" fill="#a5f3df"/></svg>`;
+const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="bg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse"><stop stop-color="#243A78"/><stop offset="1" stop-color="#101D48"/></linearGradient><linearGradient id="mark" x1="20" y1="18" x2="45" y2="46" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#DCE8FF"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="url(#bg)"/><path d="M19 17.625V33C19 41.25 24.25 45.875 32 45.875C39.75 45.875 45 41.25 45 33V17.625" fill="none" stroke="url(#mark)" stroke-width="7" stroke-linecap="round"/><circle cx="45" cy="17.625" r="4.875" fill="#7FE0C1"/><path d="M42.75 17.625L44.25 19.125L47.375 15.875" fill="none" stroke="#102043" stroke-width="1.375" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 const INIT_SCRIPT = `<script type="module">
 const root = document.getElementById('root');
@@ -495,7 +495,7 @@ try {
 </script>`;
 
 function layout(title, bodyHtml, actions = '') {
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#05060a"><meta name="application-name" content="UGLINK"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" type="image/png" sizes="180x180" href="/icon-180.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="导航"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><title>UGLINK · ${title}</title><style>${STYLE}</style></head>
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#05060a"><meta name="application-name" content="UGLINK"><link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml"><link rel="icon" type="image/png" sizes="180x180" href="/icon-180.png?v=2"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2"><link rel="manifest" href="/manifest.webmanifest?v=2"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="导航"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><title>UGLINK · ${title}</title><style>${STYLE}</style></head>
 <body><div id="root">
 <div class="bg"></div>
 <header class="glass bar" data-config='${BAR_CONFIG}'><div class="inner"><span class="brand">UGLINK</span><h1 style="font-size:15px;margin:0 0 0 2px;font-weight:600">${title}</h1><span class="spacer"></span>${actions}</div></header>
