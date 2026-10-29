@@ -516,6 +516,40 @@ function layout(title, bodyHtml, actions = '') {
 </div>${INIT_SCRIPT}</body></html>`;
 }
 
+function goPage(app) {
+  const name = escapeHtml(app.name);
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#080d1b"><link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml"><title>正在打开 ${name} · UGLINK</title>
+<style>
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 30% 20%,#1b3262,transparent 48%),radial-gradient(circle at 80% 80%,#153c3a,transparent 42%),#080d1b;color:#f4f6fb;font:15px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}.card{width:min(420px,100%);padding:38px 30px;text-align:center;border:1px solid rgba(255,255,255,.14);border-radius:26px;background:rgba(18,25,43,.88);box-shadow:0 28px 80px rgba(0,0,0,.35)}.brand{margin-bottom:28px;color:#9ca9c0;font-size:12px;font-weight:700;letter-spacing:.2em}.spinner{display:block;width:38px;height:38px;margin:0 auto 20px;border:3px solid rgba(255,255,255,.12);border-top-color:#83a8ff;border-radius:50%;animation:spin .8s linear infinite}h1{margin:0 0 8px;font-size:22px;font-weight:650}p{margin:0;color:#9ca9c0;font-size:13px}.error{margin-top:16px;color:#ff9e9e}.actions{display:flex;justify-content:center;gap:10px;margin-top:24px}.btn{display:inline-block;padding:10px 18px;border:0;border-radius:12px;background:#5b8cff;color:#fff;font:inherit;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer}.btn.ghost{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07)}@keyframes spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.spinner{animation-duration:1.6s}}
+</style></head><body><main class="card"><div class="brand">UGLINK</div><span class="spinner" id="spinner" aria-hidden="true"></span><h1>正在打开 ${name}</h1><p id="status" role="status" aria-live="polite">正在签发一次性登录凭据，完成后将自动跳转…</p><p class="error" id="error" role="alert" hidden></p><div class="actions" id="actions" hidden><button class="btn" id="retry" type="button">重试</button><a class="btn ghost" href="/">返回导航</a></div><noscript><p class="error">请启用 JavaScript 以完成登录跳转。</p></noscript></main>
+<script>
+const appId = ${clientData(app.id)};
+const status = document.getElementById('status');
+const error = document.getElementById('error');
+async function openApp() {
+  document.getElementById('spinner').hidden = false;
+  document.getElementById('actions').hidden = true;
+  error.hidden = true;
+  status.textContent = '正在签发一次性登录凭据，完成后将自动跳转…';
+  try {
+    const response = await fetch('/api/mint?app=' + encodeURIComponent(appId));
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.url) throw new Error(data.error || '登录链接签发失败');
+    status.textContent = '签发完成，正在跳转…';
+    location.replace(data.url);
+  } catch (reason) {
+    document.getElementById('spinner').hidden = true;
+    status.textContent = '暂时无法打开应用';
+    error.textContent = reason.message || '登录链接签发失败，请稍后重试。';
+    error.hidden = false;
+    document.getElementById('actions').hidden = false;
+  }
+}
+document.getElementById('retry').addEventListener('click', openApp);
+openApp();
+</script></body></html>`;
+}
+
 function loginPage() {
   return layout('登录', `<p class="sub" style="margin-top:0">请输入访问口令进入导航。</p>
 <form method="POST" action="/login"><label>访问口令</label><input type="password" name="key" autofocus autocomplete="current-password"><button class="btn" style="margin-top:18px;width:100%">进入</button></form>`)
@@ -984,13 +1018,7 @@ export default {
       if (!config) return new Response('尚未配置', { status: 400 });
       const app = (config.apps ?? []).find((a) => a.id === url.searchParams.get('app'));
       if (!app) return new Response('应用不存在', { status: 404 });
-      if (limited(request.headers.get('CF-Connecting-IP') ?? 'unknown')) return new Response('签发过于频繁', { status: 429 });
-      try {
-        const target = await mint(config, app.port);
-        return new Response(null, { status: 302, headers: { Location: target, 'Cache-Control': 'no-store' } });
-      } catch (error) {
-        return new Response(`签发失败：${error.message}`, { status: 502 });
-      }
+      return new Response(goPage(app), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
     }
     return new Response('not found', { status: 404 });
   },
