@@ -10,7 +10,7 @@
 
 ## 实现路径
 
-![浏览器、Cloudflare Worker、KV 与绿联 NAS 的实现路径拓扑图](docs/topology.svg)
+![浏览器、Cloudflare Worker、KV 与绿联 NAS 的实现路径拓扑图](docs/topology-v2.png?v=2)
 
 图中展示了配置读取、一次性登录票据签发，以及后续浏览器直连中继的完整链路。
 
