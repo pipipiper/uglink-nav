@@ -329,6 +329,7 @@ async function verifyPassword(password, env) {
 const STYLE = `
 :root{color-scheme:dark;--ink:#f4f6fb;--muted:rgba(235,240,255,.55);--line:rgba(255,255,255,.14)}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0;min-height:100%;overflow-x:hidden}
 body{background:#05060a;color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 a{color:inherit}
@@ -419,6 +420,18 @@ img.ico{border-radius:12px}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-hint{margin:6px 0 0;color:var(--muted);font-size:11px;line-height:1.5}
 .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+.modal-body{padding:12px 22px 22px}
+.mint-description{margin:0;color:rgba(255,255,255,.86);font-size:14px;line-height:1.8}
+.mint-warning{margin:12px 0 0;color:var(--muted);font-size:12px;line-height:1.7}
+.mint-progress{padding:24px 0 14px;text-align:center}
+.mint-spinner{display:block;width:34px;height:34px;margin:0 auto 16px;border:3px solid rgba(255,255,255,.12);border-top-color:#83a8ff;border-radius:50%;animation:mint-spin .8s linear infinite}
+.mint-progress h3,.mint-result h3{margin:0 0 7px;font-size:17px;font-weight:600}
+.mint-progress p,.mint-result p{margin:0;color:var(--muted);font-size:12px}
+.mint-result{padding-top:4px}
+.mint-result h3{color:#7fe0c1}
+.mint-link{margin-top:6px!important;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px!important;line-height:1.5;user-select:all}
+#mint-copy-status{min-height:20px;margin-top:8px;font-size:12px}
+@keyframes mint-spin{to{transform:rotate(360deg)}}
 #app-msg{min-height:20px;margin:10px 0 -8px;font-size:12px}
 .settings-section{border-top:1px solid var(--line);margin-top:24px;padding-top:5px}
 .section-title{font-size:14px;margin:18px 0 2px;font-weight:600}
@@ -532,6 +545,18 @@ function appDialog() {
 </form></dialog>`;
 }
 
+function mintDialog() {
+  return `<dialog class="modal" id="mint-dialog" aria-labelledby="mint-title">
+<div class="modal-head"><h2 id="mint-title">签发一次性登录链接</h2><button class="modal-close" id="mint-close" type="button" aria-label="关闭">×</button></div>
+<div class="modal-body">
+<div id="mint-confirm"><p class="mint-description" id="mint-description"></p><p class="mint-warning">链接包含临时登录凭据，任何获得链接的人都可能登录该应用。链接打开后失效，请勿分享给不信任的人。</p></div>
+<div class="mint-progress" id="mint-progress" role="status" aria-live="polite" hidden><span class="mint-spinner" aria-hidden="true"></span><h3>正在签发…</h3><p>正在通过 UGREENlink 获取一次性登录凭据，请稍候。</p></div>
+<div class="mint-result" id="mint-result" hidden><h3>签发完成</h3><p>一次性登录链接已生成，请妥善保管。</p><label for="mint-url">登录链接</label><input class="mint-link" id="mint-url" type="text" readonly autocomplete="off" spellcheck="false"><p id="mint-copy-status" role="status" aria-live="polite"></p></div>
+<p class="err" id="mint-error" role="alert" hidden></p>
+<div class="modal-actions"><button class="btn ghost" id="mint-cancel" type="button">取消</button><button class="btn" id="mint-primary" type="button">确定签发</button></div>
+</div></dialog>`;
+}
+
 function clientData(value) {
   return JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 }
@@ -552,13 +577,19 @@ function navPage(config) {
 <div class="empty" id="no-results"><div class="empty-symbol">⌕</div><h3>没有找到应用</h3><p class="sub">试试其他名称或分类。</p></div>
 <p id="nav-notice" role="status" aria-live="polite" style="min-height:22px;margin:14px 0 0;font-size:13px;text-align:center"></p>
 ${appDialog().replace('<datalist id="category-list"></datalist>', `<datalist id="category-list">${categories.map((item) => `<option value="${escapeHtml(item)}"></option>`).join('')}</datalist>`)}
+${mintDialog()}
 <script>
 const apps = ${clientData(apps)};
 const dialog = document.getElementById('app-dialog');
+const mintDialog = document.getElementById('mint-dialog');
 const form = document.getElementById('app-form');
 const search = document.getElementById('app-search');
 const count = document.getElementById('app-count');
 let category = '';
+let mintApp = null;
+let mintBusy = false;
+let mintState = 'confirm';
+let mintedUrl = '';
 function notify(message, error = false) {
   const notice = document.getElementById('nav-notice');
   notice.textContent = message;
@@ -578,6 +609,81 @@ async function copyText(text) {
     if (!copied) throw new Error('浏览器未允许复制，请检查剪贴板权限');
   }
 }
+function setMintState(state, message = '') {
+  mintState = state;
+  document.getElementById('mint-confirm').hidden = state !== 'confirm';
+  document.getElementById('mint-progress').hidden = state !== 'busy';
+  document.getElementById('mint-result').hidden = state !== 'done';
+  document.getElementById('mint-error').hidden = state !== 'error';
+  document.getElementById('mint-title').textContent = state === 'done' ? '一次性登录链接已签发' : state === 'error' ? '签发失败' : '签发一次性登录链接';
+  document.getElementById('mint-close').disabled = state === 'busy';
+  document.getElementById('mint-cancel').disabled = state === 'busy';
+  const primary = document.getElementById('mint-primary');
+  primary.hidden = state === 'busy';
+  primary.disabled = state === 'busy';
+  primary.textContent = state === 'done' ? '复制链接' : state === 'error' ? '重新签发' : '确定签发';
+  document.getElementById('mint-cancel').textContent = state === 'done' ? '关闭' : '取消';
+  document.getElementById('mint-error').textContent = message;
+}
+function openMintDialog(app) {
+  mintApp = app;
+  mintedUrl = '';
+  document.getElementById('mint-description').textContent = '将为“' + app.name + '”签发一次性登录链接。';
+  document.getElementById('mint-url').value = '';
+  document.getElementById('mint-copy-status').textContent = '';
+  setMintState('confirm');
+  mintDialog.showModal();
+}
+async function issueMintLink() {
+  if (!mintApp || mintBusy) return;
+  mintBusy = true;
+  setMintState('busy');
+  try {
+    const response = await fetch('/api/mint?app=' + encodeURIComponent(mintApp.id));
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.url) throw new Error(data.error || '登录链接签发失败');
+    mintedUrl = data.url;
+    const field = document.getElementById('mint-url');
+    field.value = mintedUrl;
+    setMintState('done');
+    const status = document.getElementById('mint-copy-status');
+    try {
+      await copyText(mintedUrl);
+      status.className = 'ok';
+      status.textContent = '已自动复制，也可以手动复制。';
+    } catch {
+      field.focus();
+      field.select();
+      status.className = '';
+      status.textContent = '浏览器未允许自动复制，请点击“复制链接”或手动选择复制。';
+    }
+  } catch (error) {
+    setMintState('error', error.message || '登录链接签发失败');
+  } finally {
+    mintBusy = false;
+  }
+}
+document.getElementById('mint-primary').addEventListener('click', async () => {
+  if (mintState !== 'done') return issueMintLink();
+  const status = document.getElementById('mint-copy-status');
+  try {
+    await copyText(mintedUrl);
+    status.className = 'ok';
+    status.textContent = '链接已复制。';
+    document.getElementById('mint-primary').textContent = '已复制';
+  } catch (error) {
+    const field = document.getElementById('mint-url');
+    field.focus();
+    field.select();
+    status.className = 'err';
+    status.textContent = error.message || '复制失败，请手动选择链接复制。';
+  }
+});
+document.getElementById('mint-url').addEventListener('focus', (event) => event.target.select());
+document.getElementById('mint-close').onclick = () => mintDialog.close();
+document.getElementById('mint-cancel').onclick = () => mintDialog.close();
+mintDialog.addEventListener('click', (event) => { if (event.target === mintDialog && !mintBusy) mintDialog.close(); });
+mintDialog.addEventListener('cancel', (event) => { if (mintBusy) event.preventDefault(); });
 function openDialog(app) {
   document.getElementById('dialog-title').textContent = app ? '编辑应用' : '新增应用';
   document.getElementById('app-id').value = app?.id || '';
@@ -624,23 +730,7 @@ document.querySelectorAll('[data-action]').forEach((button) => button.addEventLi
   const app = apps.find((item) => item.id === id);
   if (button.dataset.action === 'edit') return openDialog(app);
   if (button.dataset.action === 'copy') {
-    if (!confirm('将为“' + app.name + '”生成含临时登录凭据的一次性链接。任何获得链接的人都可能登录该应用，打开后链接失效。确定生成并复制吗？')) return;
-    button.disabled = true;
-    const original = button.textContent;
-    button.textContent = '正在签发…';
-    try {
-      const response = await fetch('/api/mint?app=' + encodeURIComponent(id));
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data.url) throw new Error(data.error || '登录链接签发失败');
-      await copyText(data.url);
-      notify('一次性登录链接已复制，请勿分享给不信任的人。');
-      document.querySelectorAll('.card-menu.open').forEach((el) => { el.classList.remove('open'); el.querySelector('button').setAttribute('aria-expanded', 'false'); });
-    } catch (error) {
-      notify(error.message || '复制失败', true);
-    } finally {
-      button.disabled = false;
-      button.textContent = original;
-    }
+    openMintDialog(app);
     return;
   }
   if (!confirm('确定删除“' + app.name + '”吗？此操作不会影响 NAS 上的应用。')) return;
