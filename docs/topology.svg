@@ -1,96 +1,86 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="790" viewBox="0 0 1200 790" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1030" viewBox="0 0 1200 1030" role="img" aria-labelledby="title desc">
   <title id="title">UGLINK 当前实现路径拓扑图</title>
-  <desc id="desc">浏览器通过 Cloudflare Worker 读取 KV 配置，Worker 通过 UGREENlink 发现服务并使用保存的 NAS 账户登录，取得一次性票据后，浏览器新标签页直连绿联中继和 NAS Docker 应用。</desc>
+  <desc id="desc">五步流程：浏览器点击应用，Worker 发现中继，使用保存的 NAS 账户签发一次性票据，浏览器打开新标签页，最后直连绿联中继和 Docker 应用。KV 与 Secret 是 Worker 的侧向依赖。</desc>
   <defs>
     <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#111a31"/><stop offset="1" stop-color="#070b16"/></linearGradient>
-    <linearGradient id="worker" x2="1" y2="1"><stop stop-color="#263c72"/><stop offset="1" stop-color="#182544"/></linearGradient>
-    <linearGradient id="direct" x2="1" y2="1"><stop stop-color="#123c3d"/><stop offset="1" stop-color="#102a31"/></linearGradient>
     <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#83a8ff"/></marker>
-    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#7fe0c1"/></marker>
+    <marker id="green-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#7fe0c1"/></marker>
     <style>
       text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;fill:#f4f6fb}
-      .muted{fill:#99a5bd}.small{font-size:15px}.label{font-size:17px}.title{font-size:20px;font-weight:600}
-      .zone{fill:#11182a;stroke:#2a3550}.node{fill:#1b2438;stroke:#3a4969}.worker{fill:url(#worker);stroke:#6d91ec}.direct{fill:url(#direct);stroke:#56ad98}
-      .flow{fill:none;stroke:#83a8ff;stroke-width:2.5;marker-end:url(#arrow)}.flow-direct{fill:none;stroke:#7fe0c1;stroke-width:3;marker-end:url(#arrow-green)}
-      .num{fill:#83a8ff}.numtext{fill:#0a1224;font-size:16px;font-weight:700;text-anchor:middle}.step{fill:#83a8ff;font-size:15px}
+      .muted{fill:#9ca9c0}.small{font-size:16px}.label{font-size:18px}.title{font-size:22px;font-weight:600}
+      .node{fill:#1b2438;stroke:#3a4969}.worker{fill:#20345f;stroke:#6d91ec}.direct{fill:#123332;stroke:#56ad98}
+      .flow{fill:none;stroke:#83a8ff;stroke-width:2.5;marker-end:url(#arrow)}
+      .flow-direct{fill:none;stroke:#7fe0c1;stroke-width:3;marker-end:url(#green-arrow)}
+      .dependency{fill:none;stroke:#63728f;stroke-width:2;marker-end:url(#arrow)}
+      .num{fill:#83a8ff}.numtext{fill:#0a1224;font-size:18px;font-weight:700;text-anchor:middle}
     </style>
   </defs>
-  <rect width="1200" height="790" rx="28" fill="url(#bg)"/>
-  <text x="44" y="56" style="font-size:28px;font-weight:650">UGLINK 当前实现路径</text>
-  <text x="44" y="86" class="muted label">Worker 负责配置与一次性登录签发，应用日常流量由浏览器直连绿联中继</text>
+  <rect width="1200" height="1030" rx="28" fill="url(#bg)"/>
+  <text x="46" y="58" style="font-size:30px;font-weight:650">UGLINK 当前实现路径</text>
+  <text x="46" y="91" class="muted label">Worker 只负责配置与一次性登录签发，应用日常流量由浏览器直连绿联中继</text>
 
-  <rect class="zone" x="34" y="116" width="278" height="584" rx="20"/>
-  <rect class="zone" x="346" y="116" width="320" height="584" rx="20"/>
-  <rect class="zone" x="700" y="116" width="466" height="584" rx="20"/>
-  <text x="56" y="151" class="muted label">用户浏览器 · 手机 / PC</text>
-  <text x="368" y="151" class="muted label">Cloudflare</text>
-  <text x="722" y="151" class="muted label">UGREENlink 与绿联 NAS</text>
+  <text x="54" y="142" class="muted small">主流程</text>
+  <text x="826" y="142" class="muted small">Worker 侧向依赖</text>
 
-  <rect class="node" x="58" y="184" width="230" height="102" rx="16"/>
-  <text x="80" y="222" class="title">导航首页</text>
-  <text x="80" y="250" class="muted small">访问口令 / 应用管理 / 搜索</text>
-  <text x="80" y="272" class="muted small">点击应用图标</text>
+  <rect class="node" x="54" y="166" width="676" height="112" rx="16"/>
+  <circle class="num" cx="96" cy="222" r="23"/><text class="numtext" x="96" y="229">1</text>
+  <text x="140" y="213" class="title">浏览器 · 导航首页</text>
+  <text x="140" y="245" class="muted small">手机或 PC 点击应用，请求 /go?app=应用ID</text>
 
-  <rect class="worker" x="374" y="184" width="264" height="116" rx="16"/>
-  <text x="396" y="222" class="title">Cloudflare Worker</text>
-  <text x="396" y="250" class="muted small">验证会话 / 应用路由</text>
-  <text x="396" y="273" class="muted small">Discovery → 登录 → 票据签发</text>
+  <path class="flow" d="M392 278V306"/>
 
-  <rect class="node" x="374" y="356" width="264" height="112" rx="16"/>
-  <text x="396" y="394" class="title">Cloudflare KV</text>
-  <text x="396" y="422" class="muted small">应用列表 / NAS 账户配置</text>
-  <text x="396" y="446" class="muted small">访问口令哈希 / 会话版本</text>
+  <rect class="worker" x="54" y="308" width="676" height="130" rx="16"/>
+  <circle class="num" cx="96" cy="373" r="23"/><text class="numtext" x="96" y="380">2</text>
+  <text x="140" y="356" class="title">Cloudflare Worker · 发现中继</text>
+  <text x="140" y="389" class="muted small">查询 UGREENlink Discovery，获取中继域名</text>
+  <text x="140" y="416" class="muted small">同时读取应用端口与 NAS 配置</text>
 
-  <rect class="node" x="374" y="524" width="264" height="92" rx="16"/>
-  <text x="396" y="561" class="title">ADMIN_KEY Secret</text>
-  <text x="396" y="590" class="muted small">初始口令 / HMAC 会话签名</text>
+  <path class="flow" d="M392 438V466"/>
 
-  <rect class="node" x="728" y="176" width="196" height="94" rx="16"/>
-  <text x="750" y="212" class="title">Discovery</text>
-  <text x="750" y="241" class="muted small">api-*.ugnas.com</text>
-  <rect class="node" x="948" y="176" width="194" height="94" rx="16"/>
-  <text x="970" y="212" class="title">绿联 NAS</text>
-  <text x="970" y="241" class="muted small">verify / dockerToken</text>
+  <rect class="worker" x="54" y="468" width="676" height="130" rx="16"/>
+  <circle class="num" cx="96" cy="533" r="23"/><text class="numtext" x="96" y="540">3</text>
+  <text x="140" y="516" class="title">绿联 NAS · 签发一次性登录票据</text>
+  <text x="140" y="549" class="muted small">使用保存的 NAS 账户登录，调用 verify / dockerToken</text>
+  <text x="140" y="576" class="muted small">返回一次性 URL，由 Worker 通过 302 交给浏览器</text>
 
-  <rect class="direct" x="58" y="490" width="230" height="112" rx="16"/>
-  <text x="80" y="528" class="title">新标签页</text>
-  <text x="80" y="556" class="muted small">打开一次性登录地址</text>
-  <text x="80" y="580" class="muted small">后续携带中继 Cookie</text>
-  <rect class="direct" x="752" y="490" width="364" height="112" rx="16"/>
-  <text x="776" y="528" class="title">绿联中继 → Docker 应用</text>
-  <text x="776" y="556" class="muted small">中继写入 Cookie，转发至应用端口</text>
-  <text x="776" y="580" class="muted small">手机 / PC 免登录持续访问</text>
+  <path class="flow" d="M392 598V626"/>
 
-  <path class="flow" d="M288 235H374"/>
-  <circle class="num" cx="331" cy="235" r="15"/><text class="numtext" x="331" y="241">1</text>
-  <text x="300" y="211" class="step">点击应用</text>
-  <path class="flow" d="M462 300V356"/>
-  <text x="477" y="334" class="muted small">读取配置</text>
-  <path class="flow" d="M570 524V468"/>
-  <text x="583" y="500" class="muted small">会话签名</text>
+  <rect class="node" x="54" y="628" width="676" height="112" rx="16"/>
+  <circle class="num" cx="96" cy="684" r="23"/><text class="numtext" x="96" y="691">4</text>
+  <text x="140" y="675" class="title">浏览器 · 新标签页</text>
+  <text x="140" y="707" class="muted small">打开一次性登录地址，票据使用后失效</text>
 
-  <path class="flow" d="M638 215H694V205H728"/>
-  <circle class="num" cx="694" cy="215" r="15"/><text class="numtext" x="694" y="221">2</text>
-  <text x="656" y="190" class="step">发现中继</text>
-  <path class="flow" d="M924 223H948"/>
-  <text x="910" y="291" class="muted small">中继域名</text>
-  <path class="flow" d="M638 269H1045V270"/>
-  <circle class="num" cx="1045" cy="285" r="15"/><text class="numtext" x="1045" y="291">3</text>
-  <text x="739" y="302" class="step">使用保存的 NAS 账户登录并申请一次性票据</text>
+  <path class="flow-direct" d="M392 740V768"/>
 
-  <path class="flow" d="M1045 270V342H173V490"/>
-  <circle class="num" cx="690" cy="342" r="15"/><text class="numtext" x="690" y="348">4</text>
-  <text x="442" y="331" class="step">一次性 URL → Worker 302 → 浏览器</text>
+  <rect class="direct" x="54" y="770" width="676" height="130" rx="16"/>
+  <circle cx="96" cy="835" r="23" fill="#7fe0c1"/><text class="numtext" x="96" y="842">5</text>
+  <text x="140" y="818" class="title">绿联中继 → NAS Docker 应用</text>
+  <text x="140" y="851" class="muted small">中继写入 Cookie，并转发至对应应用端口</text>
+  <text x="140" y="878" class="muted small">后续手机 / PC 直连应用，不再经过 Worker</text>
 
-  <path class="flow-direct" d="M288 546H752"/>
-  <circle cx="520" cy="546" r="15" fill="#7fe0c1"/><text class="numtext" x="520" y="552">5</text>
-  <text x="422" y="522" class="step" fill="#7fe0c1">浏览器直连，不经过 Worker</text>
-  <path class="flow-direct" d="M1045 270V322H1128V490"/>
-  <text x="1024" y="388" class="muted small" text-anchor="middle">应用端口</text>
+  <rect class="node" x="826" y="252" width="320" height="146" rx="16"/>
+  <text x="850" y="292" class="title">Cloudflare KV</text>
+  <text x="850" y="325" class="muted small">应用列表与 NAS 账户配置</text>
+  <text x="850" y="353" class="muted small">口令哈希与会话版本</text>
+  <path class="dependency" d="M826 325H730"/>
+  <text x="746" y="306" class="muted small">读写</text>
 
-  <line x1="46" y1="730" x2="78" y2="730" stroke="#83a8ff" stroke-width="3"/>
-  <text x="90" y="736" class="muted small">配置与票据签发</text>
-  <line x1="278" y1="730" x2="310" y2="730" stroke="#7fe0c1" stroke-width="3"/>
-  <text x="322" y="736" class="muted small">浏览器直连应用流量</text>
-  <text x="742" y="736" class="muted small">一次性票据使用后失效，回首页可重新签发</text>
+  <rect class="node" x="826" y="468" width="320" height="130" rx="16"/>
+  <text x="850" y="510" class="title">ADMIN_KEY Secret</text>
+  <text x="850" y="543" class="muted small">初始访问口令</text>
+  <text x="850" y="571" class="muted small">HMAC 登录会话签名</text>
+  <path class="dependency" d="M826 533H730"/>
+  <text x="746" y="514" class="muted small">签名</text>
+
+  <rect x="826" y="690" width="320" height="148" rx="16" fill="#111a2c" stroke="#33415e"/>
+  <text x="850" y="731" class="title">非 Docker 应用</text>
+  <text x="850" y="764" class="muted small">先用 port-forward 容器</text>
+  <text x="850" y="792" class="muted small">将目标端口转成中转端口</text>
+  <text x="850" y="820" class="muted small">再按相同流程访问</text>
+
+  <line x1="54" y1="955" x2="88" y2="955" stroke="#83a8ff" stroke-width="3"/>
+  <text x="102" y="962" class="muted small">配置与一次性票据签发</text>
+  <line x1="368" y1="955" x2="402" y2="955" stroke="#7fe0c1" stroke-width="3"/>
+  <text x="416" y="962" class="muted small">浏览器直连应用流量</text>
+  <text x="814" y="962" class="muted small">票据失效后回首页重新签发</text>
 </svg>
