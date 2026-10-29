@@ -228,6 +228,56 @@ npx wrangler@latest secret put ADMIN_KEY
 
 应用的增删改只在首页进行；设置页只负责 NAS 凭据和访问口令。
 
+### 4.7 添加非 Docker 应用：通过 Docker 中转端口
+
+UGREENlink 的当前签发链路面向绿联 NAS 的 Docker 应用。对于直接运行在 NAS 宿主机或其他局域网设备上的非 Docker HTTP 服务，可在 Docker 中部署 [marcnuri/port-forward](https://hub.docker.com/r/marcnuri/port-forward)，把请求转发到真实服务。
+
+```text
+浏览器 → UGREENlink 中继 → port-forward 容器中转端口
+                              → 非 Docker 服务的实际地址与端口
+```
+
+#### 环境变量
+
+| 变量 | 填写内容 | 脱敏示例 |
+| --- | --- | --- |
+| `REMOTE_HOST` | 容器可以访问的目标服务 IP 或主机名 | `192.168.1.20` |
+| `REMOTE_PORT` | 非 Docker 服务实际监听的端口 | `8080` |
+| `LOCAL_PORT` | 转发容器内部监听的端口 | `18080` |
+
+在绿联 Docker 中创建容器：
+
+1. 镜像填写 `marcnuri/port-forward`，拉取并创建容器。
+2. 在环境变量中添加上表三项。`REMOTE_HOST` 不要填写 `127.0.0.1` 或 `localhost`，因为在容器内它们指向容器自身，不是 NAS 宿主机。
+3. 端口映射建议设置为 `18080:18080`，即“宿主机中转端口：容器 `LOCAL_PORT`”。保持两者相同最不容易混淆。
+4. 启动容器，先在 NAS 所在局域网访问 `http://NAS的局域网IP:18080`，确认能打开目标服务。
+5. 回到 UGLINK 首页新增应用，**NAS 端口填写 `18080`，不是目标服务的 `8080`**。
+
+等效的 Docker Compose 示例：
+
+```yaml
+services:
+  port-forward:
+    image: marcnuri/port-forward
+    container_name: uglink-port-forward
+    restart: unless-stopped
+    environment:
+      REMOTE_HOST: 192.168.1.20  # 替换为真实服务地址
+      REMOTE_PORT: 8080          # 替换为真实服务端口
+      LOCAL_PORT: 18080          # 容器中转监听端口
+    ports:
+      - "18080:18080"
+```
+
+每个目标服务使用独立的容器和独立中转端口。例如第二个服务可将 `LOCAL_PORT` 和映射端口都改为 `18081`。
+
+注意：
+
+- 这是 TCP 端口转发，适合 HTTP/HTTPS Web 服务；目标服务的登录、跳转、WebSocket 和回调地址是否兼容，取决于目标应用本身。
+- 转发容器与目标服务之间的网络必须可达。NAS 本机服务若监听在 `127.0.0.1`，需要先允许来自容器网络的连接，并确认防火墙规则。
+- 不要将真实内网 IP、账号、口令或端口配置截图提交到公开仓库。
+- 如果 UGREENlink 无法识别容器的中转端口，请检查容器是否处于绿联 Docker 管理状态，以及容器实际监听和端口映射是否一致。
+
 ---
 
 ## 5. 验证清单

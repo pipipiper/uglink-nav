@@ -1,4 +1,5 @@
 import LG_SOURCE from './liquidglass.txt';
+import { ICON_180, ICON_512 } from './icons.js';
 
 const DISCOVERY = [
   'https://api-zh.ugnas.com/api/p2p/v2/ta/nodeInfo/byAlias',
@@ -459,6 +460,26 @@ function escapeHtml(value) {
 
 const BAR_CONFIG = '{"cornerRadius":22,"zRadius":18,"blurAmount":0.42,"refraction":0.65,"chromAberration":0.06,"edgeHighlight":0.12,"specular":0.32,"fresnel":0.95,"saturation":0.08,"tintStrength":0.16,"shadowOpacity":0.24}';
 const PANEL_CONFIG = '{"cornerRadius":26,"zRadius":34,"blurAmount":0.5,"refraction":0.78,"chromAberration":0.09,"edgeHighlight":0.14,"specular":0.4,"fresnel":1,"saturation":0.12,"tintStrength":0.2,"shadowOpacity":0.3}';
+const MANIFEST = JSON.stringify({
+  name: 'UGLINK 导航',
+  short_name: '导航',
+  start_url: '/',
+  display: 'standalone',
+  background_color: '#05060a',
+  theme_color: '#05060a',
+  icons: [
+    { src: '/icon-180.png', sizes: '180x180', type: 'image/png' },
+    { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }
+  ]
+});
+
+function binaryFromB64(b64, type) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+  return new Response(bytes, { headers: { 'Content-Type': type, 'Cache-Control': 'public, max-age=604800' } });
+}
+
 const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="8" y1="6" x2="56" y2="60" gradientUnits="userSpaceOnUse"><stop stop-color="#7da5ff"/><stop offset="1" stop-color="#4a7bf0"/></linearGradient></defs><rect width="64" height="64" rx="17" fill="#0c1224"/><rect x="3" y="3" width="58" height="58" rx="15" fill="url(#g)"/><path d="M17 18v19c0 8 6 12 15 12s15-4 15-12V18h-9v19c0 3-2 5-6 5s-6-2-6-5V18z" fill="white"/><circle cx="47" cy="17" r="5" fill="#a5f3df"/></svg>`;
 
 const INIT_SCRIPT = `<script type="module">
@@ -474,7 +495,7 @@ try {
 </script>`;
 
 function layout(title, bodyHtml, actions = '') {
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#05060a"><meta name="application-name" content="UGLINK"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/favicon.svg"><title>UGLINK · ${title}</title><style>${STYLE}</style></head>
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#05060a"><meta name="application-name" content="UGLINK"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" type="image/png" sizes="180x180" href="/icon-180.png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="导航"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><title>UGLINK · ${title}</title><style>${STYLE}</style></head>
 <body><div id="root">
 <div class="bg"></div>
 <header class="glass bar" data-config='${BAR_CONFIG}'><div class="inner"><span class="brand">UGLINK</span><h1 style="font-size:15px;margin:0 0 0 2px;font-weight:600">${title}</h1><span class="spacer"></span>${actions}</div></header>
@@ -521,7 +542,7 @@ function navPage(config) {
   const filters = ['全部', ...categories].map((category, index) => `<button class="filter${index === 0 ? ' active' : ''}" type="button" data-category="${escapeHtml(index === 0 ? '' : category)}">${escapeHtml(category)}</button>`).join('');
   const tiles = apps.map((app) => `<article class="app-item" data-id="${escapeHtml(app.id)}" data-name="${escapeHtml(String(app.name).toLowerCase())}" data-category="${escapeHtml(app.category || '默认分类')}">
 <a class="tile" href="/go?app=${encodeURIComponent(app.id)}" target="_blank" rel="noopener noreferrer" title="在新标签页打开 ${escapeHtml(app.name)}">${iconHtml(app)}<span class="nm">${escapeHtml(app.name)}</span><span class="port">:${escapeHtml(app.port)}</span></a>
-<div class="card-menu"><button class="menu-toggle" type="button" aria-label="管理 ${escapeHtml(app.name)}" aria-expanded="false">···</button><div class="menu-popover"><button type="button" data-action="edit">编辑应用</button><button class="danger" type="button" data-action="delete">删除应用</button></div></div>
+<div class="card-menu"><button class="menu-toggle" type="button" aria-label="管理 ${escapeHtml(app.name)}" aria-expanded="false">···</button><div class="menu-popover"><button type="button" data-action="copy">复制登录链接</button><button type="button" data-action="edit">编辑应用</button><button class="danger" type="button" data-action="delete">删除应用</button></div></div>
 </article>`).join('');
   const empty = apps.length ? '' : `<div class="empty" id="empty-apps"><div class="empty-symbol">＋</div><h3>添加你的第一个应用</h3><p class="sub">集中管理 NAS 上的服务，点击即可安全登录。</p><button class="btn" type="button" data-open-app>新增应用</button></div>`;
   const body = `<div class="overview"><div><h2>我的应用</h2><p class="sub">你的 NAS 服务，从这里一键抵达。</p></div><button class="btn" type="button" data-open-app>＋ 新增应用</button></div>
@@ -529,6 +550,7 @@ function navPage(config) {
 <nav class="filters" id="app-filters" aria-label="应用分类"${apps.length ? '' : ' hidden'}>${filters}</nav>
 <div class="grid" id="app-grid"${apps.length ? '' : ' hidden'}>${tiles}</div>${empty}
 <div class="empty" id="no-results"><div class="empty-symbol">⌕</div><h3>没有找到应用</h3><p class="sub">试试其他名称或分类。</p></div>
+<p id="nav-notice" role="status" aria-live="polite" style="min-height:22px;margin:14px 0 0;font-size:13px;text-align:center"></p>
 ${appDialog().replace('<datalist id="category-list"></datalist>', `<datalist id="category-list">${categories.map((item) => `<option value="${escapeHtml(item)}"></option>`).join('')}</datalist>`)}
 <script>
 const apps = ${clientData(apps)};
@@ -537,6 +559,25 @@ const form = document.getElementById('app-form');
 const search = document.getElementById('app-search');
 const count = document.getElementById('app-count');
 let category = '';
+function notify(message, error = false) {
+  const notice = document.getElementById('nav-notice');
+  notice.textContent = message;
+  notice.className = error ? 'err' : 'ok';
+}
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const field = document.createElement('textarea');
+    field.value = text;
+    field.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.append(field);
+    field.select();
+    const copied = document.execCommand('copy');
+    field.remove();
+    if (!copied) throw new Error('浏览器未允许复制，请检查剪贴板权限');
+  }
+}
 function openDialog(app) {
   document.getElementById('dialog-title').textContent = app ? '编辑应用' : '新增应用';
   document.getElementById('app-id').value = app?.id || '';
@@ -582,6 +623,26 @@ document.querySelectorAll('[data-action]').forEach((button) => button.addEventLi
   const id = button.closest('.app-item').dataset.id;
   const app = apps.find((item) => item.id === id);
   if (button.dataset.action === 'edit') return openDialog(app);
+  if (button.dataset.action === 'copy') {
+    if (!confirm('将为“' + app.name + '”生成含临时登录凭据的一次性链接。任何获得链接的人都可能登录该应用，打开后链接失效。确定生成并复制吗？')) return;
+    button.disabled = true;
+    const original = button.textContent;
+    button.textContent = '正在签发…';
+    try {
+      const response = await fetch('/api/mint?app=' + encodeURIComponent(id));
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.url) throw new Error(data.error || '登录链接签发失败');
+      await copyText(data.url);
+      notify('一次性登录链接已复制，请勿分享给不信任的人。');
+      document.querySelectorAll('.card-menu.open').forEach((el) => { el.classList.remove('open'); el.querySelector('button').setAttribute('aria-expanded', 'false'); });
+    } catch (error) {
+      notify(error.message || '复制失败', true);
+    } finally {
+      button.disabled = false;
+      button.textContent = original;
+    }
+    return;
+  }
   if (!confirm('确定删除“' + app.name + '”吗？此操作不会影响 NAS 上的应用。')) return;
   button.disabled = true;
   const response = await fetch('/api/apps/' + encodeURIComponent(id), { method: 'DELETE' });
@@ -716,6 +777,15 @@ export default {
     }
     if (url.pathname === '/liquidglass.js') {
       return new Response(LG_SOURCE, { headers: { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } });
+    }
+    if (url.pathname === '/apple-touch-icon.png' || url.pathname === '/icon-180.png') {
+      return binaryFromB64(ICON_180, 'image/png');
+    }
+    if (url.pathname === '/icon-512.png') {
+      return binaryFromB64(ICON_512, 'image/png');
+    }
+    if (url.pathname === '/manifest.webmanifest') {
+      return new Response(MANIFEST, { headers: { 'Content-Type': 'application/manifest+json; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });
     }
 
     if (url.pathname === '/login' && request.method === 'POST') {
