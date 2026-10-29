@@ -481,8 +481,8 @@ const MANIFEST = JSON.stringify({
   background_color: '#05060a',
   theme_color: '#05060a',
   icons: [
-    { src: '/icon-180.png?v=2', sizes: '180x180', type: 'image/png' },
-    { src: '/icon-512.png?v=2', sizes: '512x512', type: 'image/png' }
+    { src: '/icon-180.png?v=3', sizes: '180x180', type: 'image/png' },
+    { src: '/icon-512.png?v=3', sizes: '512x512', type: 'image/png' }
   ]
 });
 
@@ -508,7 +508,7 @@ try {
 </script>`;
 
 function layout(title, bodyHtml, actions = '') {
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#05060a"><meta name="application-name" content="UGLINK"><link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml"><link rel="icon" type="image/png" sizes="180x180" href="/icon-180.png?v=2"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2"><link rel="manifest" href="/manifest.webmanifest?v=2"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="导航"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><title>UGLINK · ${title}</title><style>${STYLE}</style></head>
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#05060a"><meta name="application-name" content="UGLINK"><link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml"><link rel="icon" type="image/png" sizes="180x180" href="/icon-180.png?v=3"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=3"><link rel="manifest" href="/manifest.webmanifest?v=2"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="导航"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><title>UGLINK · ${title}</title><style>${STYLE}</style></head>
 <body><div id="root">
 <div class="bg"></div>
 <header class="glass bar" data-config='${BAR_CONFIG}'><div class="inner"><span class="brand">UGLINK</span><h1 style="font-size:15px;margin:0 0 0 2px;font-weight:600">${title}</h1><span class="spacer"></span>${actions}</div></header>
