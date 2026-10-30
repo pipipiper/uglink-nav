@@ -335,7 +335,7 @@ npx wrangler deployments list
 - TOTP 密钥与密码同等敏感：取得两者即可持续生成二次验证码。密钥留空时保留已保存值，可在设置页选择“移除 TOTP 密钥”
 - 导航页 = NAS 入口，`ADMIN_KEY` 必须足够强；签发接口已按 IP 限速（10 次/分钟）
 - 想换口令：优先使用网页设置；修改后旧 cookie 会立即失效
-- 建议 NAS 上单独建一个只用于此服务的低权限账号
+- 绿联 Docker 应用访问需要管理员账号；建议单独创建仅供本服务使用的管理员账号并开启二次验证，同时在设置页保存 TOTP 密钥
 - `.dev.vars`、`.dev.vars.*`、`.env*` 和 `.wrangler/` 已在 `.gitignore` 中排除，提交前仍应执行 `git diff --cached` 检查
 - 若口令或 Token 泄露，立即撤销 Token、轮换相关密钥并检查 KV 和部署日志
 

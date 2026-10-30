@@ -435,6 +435,9 @@ button{font:inherit}
 .btn:hover{filter:brightness(1.07);transform:translateY(-1px)}
 .btn:disabled{opacity:.55;cursor:default;transform:none;filter:none}
 .btn.ghost{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.14);color:rgba(255,255,255,.86)}
+.totp-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.totp-actions .btn{margin:0}
+.save-config{display:block;margin-top:18px}
 .row{display:grid;grid-template-columns:60px 1fr 110px 42px;gap:10px;align-items:center;margin-bottom:10px}
 .row input{margin:0}
 .icon-btn{height:42px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);cursor:pointer;font-size:18px}
@@ -883,10 +886,9 @@ function settingsPage(config) {
 <label for="totp-secret">TOTP 密钥（可选）</label><input id="totp-secret" type="password" autocomplete="off" placeholder="${config?.totpSecret ? '已保存，留空则不修改' : '未开启二次验证可留空'}">
 <p class="sub">粘贴 Base32 密钥，或选择绿联二次验证二维码截图，在浏览器本地识别。不要填写 6 位动态验证码。</p>
 <input id="totp-qr" type="file" accept="image/png,image/jpeg,image/webp" hidden>
-<button class="btn ghost" id="scan-totp" type="button">从二维码读取密钥</button>
+<div class="totp-actions"><button class="btn ghost" id="scan-totp" type="button">从二维码读取密钥</button><button class="btn ghost" id="clear-totp" type="button" ${config?.totpSecret ? '' : 'hidden'}>移除 TOTP 密钥</button></div>
 <p id="qr-msg" role="status" aria-live="polite"></p>
-<button class="btn ghost" id="clear-totp" type="button" ${config?.totpSecret ? '' : 'hidden'}>移除 TOTP 密钥</button>
-<button class="btn" id="save" style="margin-top:18px">保存配置</button>
+<button class="btn save-config" id="save">保存配置</button>
 <p id="msg"></p>
 </div>
 <div class="settings-section"><h2 class="section-title">修改访问口令</h2><p class="sub">新口令至少 8 个字符。修改成功后，其他设备的登录态都会失效。</p>
