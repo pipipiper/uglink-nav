@@ -7,9 +7,12 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "check": "node --check worker.js && node --experimental-loader ./text-loader.mjs --test totp.test.js"
+    "check": "node --check worker.js && node --experimental-loader ./text-loader.mjs --test totp.test.js qr.test.js"
   },
   "devDependencies": {
+    "jsqr": "^1.4.0",
+    "pngjs": "^7.0.0",
+    "qrcode": "^1.5.4",
     "wrangler": "^4.154.0"
   }
 }

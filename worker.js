@@ -1,5 +1,6 @@
 import LG_SOURCE from './liquidglass.txt';
 import { ICON_180, ICON_512 } from './icons.js';
+import jsQR from 'jsqr';
 
 const DISCOVERY = [
   'https://api-zh.ugnas.com/api/p2p/v2/ta/nodeInfo/byAlias',
@@ -880,7 +881,10 @@ function settingsPage(config) {
 <label>NAS 用户名</label><input id="username" value="${escapeHtml(config?.username ?? '')}">
 <label>NAS 密码</label><input id="password" type="password" placeholder="${config?.password ? '已保存，留空则不修改' : '未设置'}">
 <label for="totp-secret">TOTP 密钥（可选）</label><input id="totp-secret" type="password" autocomplete="off" placeholder="${config?.totpSecret ? '已保存，留空则不修改' : '未开启二次验证可留空'}">
-<p class="sub">粘贴开启二次验证时显示的 Base32 密钥，而不是 6 位动态验证码。Worker 登录时会自动生成验证码。</p>
+<p class="sub">粘贴 Base32 密钥，或选择绿联二次验证二维码截图，在浏览器本地识别。不要填写 6 位动态验证码。</p>
+<input id="totp-qr" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+<button class="btn ghost" id="scan-totp" type="button">从二维码读取密钥</button>
+<p id="qr-msg" role="status" aria-live="polite"></p>
 <button class="btn ghost" id="clear-totp" type="button" ${config?.totpSecret ? '' : 'hidden'}>移除 TOTP 密钥</button>
 <button class="btn" id="save" style="margin-top:18px">保存配置</button>
 <p id="msg"></p>
@@ -893,12 +897,73 @@ function settingsPage(config) {
 <button class="btn ghost" id="change-key" type="submit" style="margin-top:18px">更新口令</button><p id="key-msg"></p>
 </form></div>
 <script>
+let scannedTotpSecret = '';
+let qrDecoderReady;
+const qrMessage = document.getElementById('qr-msg');
+document.getElementById('scan-totp').onclick = () => document.getElementById('totp-qr').click();
+document.getElementById('totp-secret').addEventListener('input', () => { scannedTotpSecret = ''; });
+function loadQrDecoder() {
+  if (self.jsQR) return Promise.resolve();
+  if (!qrDecoderReady) {
+    qrDecoderReady = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = '/jsqr.js';
+      script.onload = resolve;
+      script.onerror = () => { qrDecoderReady = null; reject(new Error('二维码识别组件加载失败，请检查网络后重试')); };
+      document.head.appendChild(script);
+    });
+  }
+  return qrDecoderReady;
+}
+document.getElementById('totp-qr').addEventListener('change', async (event) => {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) return;
+  const button = document.getElementById('scan-totp');
+  button.disabled = true;
+  qrMessage.className = '';
+  qrMessage.textContent = '正在本地识别二维码…';
+  let image;
+  try {
+    if (file.size > 10 * 1024 * 1024) throw new Error('图片不能超过 10 MB');
+    await loadQrDecoder();
+    const bitmap = await createImageBitmap(file);
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      context.drawImage(bitmap, 0, 0);
+      const pixels = context.getImageData(0, 0, bitmap.width, bitmap.height);
+      const result = self.jsQR(pixels.data, pixels.width, pixels.height);
+      if (!result) throw new Error('未识别到二维码，请使用包含完整二维码的清晰截图');
+      const uri = new URL(result.data);
+      if (uri.protocol !== 'otpauth:' || uri.hostname.toLowerCase() !== 'totp') throw new Error('该二维码不是 TOTP 二次验证二维码');
+      const secret = (uri.searchParams.get('secret') || '').replace(/\s+/g, '').replace(/=+$/g, '').toUpperCase();
+      if (secret.length < 16 || secret.length > 128 || !/^[A-Z2-7]+$/.test(secret)) throw new Error('二维码中的 TOTP 密钥格式无效');
+      scannedTotpSecret = secret;
+      const input = document.getElementById('totp-secret');
+      input.value = secret;
+      input.type = 'text';
+      qrMessage.className = 'ok';
+      qrMessage.textContent = '已提取 TOTP 密钥，请点击“保存配置”';
+    } finally {
+      bitmap.close();
+    }
+  } catch (error) {
+    scannedTotpSecret = '';
+    qrMessage.className = 'err';
+    qrMessage.textContent = error.message || '二维码识别失败';
+  } finally {
+    button.disabled = false;
+  }
+});
 document.getElementById('save').onclick = async () => {
   const body = {
     alias: document.getElementById('alias').value.trim(),
     username: document.getElementById('username').value.trim(),
     password: document.getElementById('password').value,
-    totpSecret: document.getElementById('totp-secret').value.trim(),
+    totpSecret: scannedTotpSecret || document.getElementById('totp-secret').value.trim(),
   };
   const res = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
@@ -990,6 +1055,9 @@ export default {
     }
     if (url.pathname === '/liquidglass.js') {
       return new Response(LG_SOURCE, { headers: { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } });
+    }
+    if (url.pathname === '/jsqr.js') {
+      return new Response(`self.jsQR=${jsQR.toString()};`, { headers: { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } });
     }
     if (url.pathname === '/apple-touch-icon.png' || url.pathname === '/icon-180.png') {
       return binaryFromB64(ICON_180, 'image/png');
