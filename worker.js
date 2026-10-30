@@ -172,6 +172,48 @@ function absorbCookies(jar, response) {
   }
 }
 
+function normalizeTotpSecret(value) {
+  if (typeof value !== 'string') return '';
+  let secret = value.trim();
+  if (!secret) return '';
+  if (/^otpauth:\/\//i.test(secret)) {
+    try {
+      const uri = new URL(secret);
+      if (uri.protocol !== 'otpauth:' || uri.hostname.toLowerCase() !== 'totp') return null;
+      secret = uri.searchParams.get('secret') ?? '';
+    } catch {
+      return null;
+    }
+  }
+  secret = secret.replace(/\s+/g, '').replace(/=+$/g, '').toUpperCase();
+  if (secret.length < 16 || secret.length > 128 || !/^[A-Z2-7]+$/.test(secret)) return null;
+  return secret;
+}
+
+function base32ToBytes(secret) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  for (const char of secret) bits += alphabet.indexOf(char).toString(2).padStart(5, '0');
+  const out = new Uint8Array(Math.floor(bits.length / 8));
+  for (let i = 0; i < out.length; i += 1) out[i] = parseInt(bits.slice(i * 8, i * 8 + 8), 2);
+  return out;
+}
+
+async function generateTotp(secret, timestamp = Date.now()) {
+  const normalized = normalizeTotpSecret(secret);
+  if (!normalized) throw new Error('TOTP 密钥格式不正确');
+  const counter = Math.floor(timestamp / 30000);
+  const message = new Uint8Array(8);
+  new DataView(message.buffer).setUint32(4, counter);
+  const key = await crypto.subtle.importKey('raw', base32ToBytes(normalized), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+  const digest = new Uint8Array(await crypto.subtle.sign('HMAC', key, message));
+  const offset = digest[digest.length - 1] & 15;
+  const code = (((digest[offset] & 127) << 24) | (digest[offset + 1] << 16) | (digest[offset + 2] << 8) | digest[offset + 3]) % 1000000;
+  return String(code).padStart(6, '0');
+}
+
+export { md5Hex, parseRsaPublicKey, rsaEncryptPKCS1, bytesToB64, generateTotp, normalizeTotpSecret };
+
 async function resolveOrigin(alias) {
   if (discoveryCache.origin && Date.now() - discoveryCache.at < 300000) return discoveryCache.origin;
   for (const endpoint of DISCOVERY) {
@@ -257,9 +299,35 @@ async function mint(config, port) {
   });
   absorbCookies(jar, login);
   const loginJson = await login.json();
-  const data = loginJson?.data ?? {};
+  let data = loginJson?.data ?? {};
   if (loginJson?.code !== 200) throw new Error(`登录失败（code ${loginJson?.code ?? 'unknown'}）`);
-  if (data.enable_otp && !data.token) throw new Error('该账号要求二次验证，签发模式无法处理');
+  if (data.enable_otp && !data.token) {
+    if (!config.totpSecret) throw new Error('账号要求二次验证，请在设置中填写 TOTP 密钥');
+    if (!data.token_id) throw new Error('登录响应缺少二次验证会话，请重试');
+    const otp = await generateTotp(config.totpSecret);
+    const verification = await fetch(`${origin}/ugreen/v1/verify/code/login`, {
+      method: 'POST',
+      headers: {
+        ...common,
+        'Content-Type': 'application/json',
+        ...(cookieHeader() ? { Cookie: cookieHeader() } : {}),
+      },
+      body: JSON.stringify({
+        code: otp,
+        type: 1,
+        token_id: data.token_id,
+        trust: false,
+        trust_info: { client_type: 'web', system: 'mac', dev_name: 'UGLINK Nav' },
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    absorbCookies(jar, verification);
+    const otpJson = await verification.json();
+    if (otpJson?.code !== 200 || !otpJson?.data?.token) {
+      throw new Error(`二次验证失败（code ${otpJson?.code ?? 'unknown'}）：检查 TOTP 密钥与 NAS 时间`);
+    }
+    data = otpJson.data;
+  }
 
   const token = data.token;
   const url = new URL(`${origin}/ugreen/v1/gateway/proxy/dockerToken`);
@@ -811,6 +879,9 @@ function settingsPage(config) {
 <label>UGREENlink ID</label><input id="alias" value="${escapeHtml(config?.alias ?? '')}" placeholder="你的 UGREENlink ID">
 <label>NAS 用户名</label><input id="username" value="${escapeHtml(config?.username ?? '')}">
 <label>NAS 密码</label><input id="password" type="password" placeholder="${config?.password ? '已保存，留空则不修改' : '未设置'}">
+<label for="totp-secret">TOTP 密钥（可选）</label><input id="totp-secret" type="password" autocomplete="off" placeholder="${config?.totpSecret ? '已保存，留空则不修改' : '未开启二次验证可留空'}">
+<p class="sub">粘贴开启二次验证时显示的 Base32 密钥，而不是 6 位动态验证码。Worker 登录时会自动生成验证码。</p>
+<button class="btn ghost" id="clear-totp" type="button" ${config?.totpSecret ? '' : 'hidden'}>移除 TOTP 密钥</button>
 <button class="btn" id="save" style="margin-top:18px">保存配置</button>
 <p id="msg"></p>
 </div>
@@ -827,12 +898,30 @@ document.getElementById('save').onclick = async () => {
     alias: document.getElementById('alias').value.trim(),
     username: document.getElementById('username').value.trim(),
     password: document.getElementById('password').value,
+    totpSecret: document.getElementById('totp-secret').value.trim(),
   };
   const res = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   const msg = document.getElementById('msg');
   msg.className = res.ok ? 'ok' : 'err';
   msg.textContent = res.ok ? '已保存' : (data.error || '保存失败');
+};
+document.getElementById('clear-totp').onclick = async () => {
+  if (!confirm('确定移除已保存的 TOTP 密钥吗？开启二次验证的 NAS 账号将无法自动登录。')) return;
+  const body = {
+    alias: document.getElementById('alias').value.trim(),
+    username: document.getElementById('username').value.trim(),
+    password: document.getElementById('password').value,
+    clearTotpSecret: true,
+  };
+  const res = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (res.ok) location.reload();
+  else {
+    const msg = document.getElementById('msg');
+    msg.className = 'err';
+    msg.textContent = data.error || '移除失败';
+  }
 };
 document.getElementById('password-form').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -950,7 +1039,16 @@ export default {
       if (!username) return json({ error: '用户名不能为空' }, 400);
       const password = typeof body.password === 'string' && body.password.length ? body.password : config?.password;
       if (!password) return json({ error: '首次配置需要填写密码' }, 400);
-      await saveConfig(env, { ...config, alias, username, password, apps: config?.apps ?? [] });
+      let totpSecret;
+      if (body.clearTotpSecret === true) {
+        totpSecret = undefined;
+      } else if (typeof body.totpSecret === 'string' && body.totpSecret.trim()) {
+        totpSecret = normalizeTotpSecret(body.totpSecret);
+        if (!totpSecret) return json({ error: 'TOTP 密钥格式不正确，请输入 Base32 密钥或 otpauth:// URI' }, 400);
+      } else {
+        totpSecret = config?.totpSecret;
+      }
+      await saveConfig(env, { ...config, alias, username, password, totpSecret, apps: config?.apps ?? [] });
       return json({ ok: true });
     }
     if (url.pathname === '/api/password' && request.method === 'POST') {
@@ -1023,5 +1121,3 @@ export default {
     return new Response('not found', { status: 404 });
   },
 };
-
-export { md5Hex, parseRsaPublicKey, rsaEncryptPKCS1, bytesToB64 };

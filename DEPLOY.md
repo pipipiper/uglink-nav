@@ -116,7 +116,7 @@ $env:CLOUDFLARE_API_TOKEN='替换为你的 Token'
 | 域名 | 用一个子域，例如 `nav.example.com` |
 | Node.js | 22.x（用于 wrangler） |
 | 绿联 NAS | 已开启 UGREENlink 远程访问 |
-| NAS 账号 | **不能开启二次验证**（当前实现无法提交 OTP，会报 `otp_required`） |
+| NAS 账号 | 可开启二次验证；开启后需在设置页保存该账号的 TOTP 密钥 |
 
 ---
 
@@ -219,7 +219,8 @@ npx wrangler@latest secret put ADMIN_KEY
 2. 输入上一步的口令
 3. 进「设置」，填：
    - **UGREENlink ID**：绿联远程访问的别名（与中继域名里那段一致）
-   - **NAS 用户名 / 密码**：建议用专用低权限账号
+   - **NAS 用户名 / 密码**：绿联应用访问需要管理员账号
+   - **TOTP 密钥（可选）**：账号开启二次验证时填写开启页面提供的 Base32 密钥（或完整的 `otpauth://` URI），不是不断变化的 6 位验证码。Worker 会在签发时自动生成验证码；未开启二次验证则留空
 4. 保存后回导航页，点「新增应用」：
    - **名称 / 端口**：端口填 NAS 本机实际服务端口，不是容器映射端口
    - **分类**：可选，用于首页筛选
@@ -321,7 +322,7 @@ npx wrangler deployments list
 
 | 内容 | 位置 |
 |---|---|
-| 应用列表、UGREENlink ID、用户名、密码 | KV `CONFIG`（明文 JSON） |
+| 应用列表、UGREENlink ID、用户名、密码、TOTP 密钥 | KV `CONFIG`（明文 JSON） |
 | 修改后的访问口令 | KV `auth-password`（PBKDF2 哈希与随机盐） |
 | 登录会话版本 | KV `auth-version` |
 | 初始口令与会话签名密钥 | Worker Secret `ADMIN_KEY` |
@@ -329,7 +330,8 @@ npx wrangler deployments list
 
 注意：
 
-- 能编辑这个 Worker 或读取该账户 KV 的人，等于能拿到 NAS 账号密码；Cloudflare 账户请开二次验证
+- 能编辑这个 Worker 或读取该账户 KV 的人，等于能拿到 NAS 账号密码和 TOTP 密钥；Cloudflare 账户请开二次验证
+- TOTP 密钥与密码同等敏感：取得两者即可持续生成二次验证码。密钥留空时保留已保存值，可在设置页选择“移除 TOTP 密钥”
 - 导航页 = NAS 入口，`ADMIN_KEY` 必须足够强；签发接口已按 IP 限速（10 次/分钟）
 - 想换口令：优先使用网页设置；修改后旧 cookie 会立即失效
 - 建议 NAS 上单独建一个只用于此服务的低权限账号
@@ -352,7 +354,8 @@ npm run dev
 
 | 现象 | 原因与处理 |
 |---|---|
-| 签发报 `otp_required` / 「要求二次验证」 | 账号开了二次验证，当前实现不支持；换免 OTP 账号或关闭验证 |
+| 签发报「要求二次验证」 | 在设置页填写该账号的 Base32 TOTP 密钥 |
+| 签发报「二次验证失败」 | 检查 TOTP 密钥是否对应该 NAS 账号，以及 NAS 和 Cloudflare 时间是否准确 |
 | `UGREENlink 发现失败` | 别名写错，或 NAS 未开启远程访问 |
 | `登录失败（code xxxx）` | 账号密码错误，或账号被风控/锁定 |
 | `签发失败（code xxxx）` | `dockerToken` 接口异常，通常是端口不存在或中继会话失败 |
@@ -368,6 +371,7 @@ npm run dev
 1. **RSA 公钥格式**：`verify/check` 返回的 `x-rsa-token` 是 base64 编码的 PEM，但头部写的是 `-----BEGIN RSA PUBLIC KEY-----`，内容实际是 SubjectPublicKeyInfo。Node/OpenSSL 按标签解析会报 `wrong tag`，必须剥掉标签后按 SPKI 重新包装。代码见 `parseRsaPublicKey`。
 2. **WebCrypto 限制**：只支持 RSA-OAEP，而绿联用 PKCS#1 v1.5，因此自行实现填充 + BigInt 模幂。
 3. **MD5**：Workers 的 `crypto.subtle` 不支持 MD5，代码里内联了纯 JS 实现（用于 `UG-Client-Id` 和 `X-Ugreen-Security-Key`）。
+4. **二次验证**：密码登录返回 `enable_otp` 且无 `token` 时，使用保存的 TOTP 密钥生成 6 位验证码，向 `verify/code/login` 提交 `code`、`token_id`、`type: 1` 和 `trust: false`，换取正式登录 token。
 4. **液态玻璃库**：`@ybouane/liquidglass` 要求玻璃元素是根节点的**直接子级**，因此页面结构是 `#root > .bg / .bar / .panel`，内容统一放在 `.inner`（`z-index:1`）避免被注入的 canvas 覆盖。库以文本模块（`liquidglass.txt` + wrangler `rules: Text`）打包，不依赖 CDN。
 5. **限制**：只代理 HTTP(S) 的登录入口；大文件、长时间下载、WebSocket、媒体播放没有兼容性保证。
 6. **票据模型**：一次性、不绑客户端。分享给他人时，用 `/api/mint` 签出的链接在有效期内可直接打开；打开即消耗。

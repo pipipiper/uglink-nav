@@ -20,7 +20,8 @@
 - 应用菜单可复制一次性登录链接，链接含临时凭据且打开后失效。
 - 应用搜索、分类筛选、Emoji / HTTPS / SVG Data URL 图标。
 - 应用在新标签页打开，保留 UGREENlink 一键登录流程。
-- 独立 NAS 凭据设置，修改访问口令需验证原口令和两次新口令。
+- 独立 NAS 凭据设置，支持使用 TOTP 密钥自动完成绿联二次验证。
+- 修改访问口令需验证原口令和两次新口令。
 - 访问口令哈希存储，修改后使所有旧会话失效。
 - 响应式液态玻璃界面，WebGL 不可用时自动回退。
 
@@ -55,7 +56,7 @@ npm run dev
 
 ## 安全说明
 
-NAS 密码保存在 Cloudflare KV 的配置 JSON 中。请使用专用低权限 NAS 账号，保护 Cloudflare 账户，并不要提交 `.dev.vars`、API Token 或真实口令。
+NAS 密码及可选的 TOTP 密钥保存在 Cloudflare KV 的配置 JSON 中。请使用专用 NAS 账号，保护 Cloudflare 账户，并不要提交 `.dev.vars`、API Token 或真实口令。TOTP 密钥与密码同等敏感，任何取得两者的人都可以持续生成二次验证码。
 
 ## License
 
