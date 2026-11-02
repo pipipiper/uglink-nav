@@ -1026,6 +1026,19 @@ function limited(ip) {
   return false;
 }
 
+function limitedBucket(name, ip, maxAttempts, windowMs) {
+  const now = Date.now();
+  const key = `${name}:${ip}`;
+  const list = (rate.get(key) ?? []).filter((t) => now - t < windowMs);
+  if (list.length >= maxAttempts) {
+    rate.set(key, list);
+    return true;
+  }
+  list.push(now);
+  rate.set(key, list);
+  return false;
+}
+
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
 }
@@ -1051,6 +1064,10 @@ async function saveConfig(env, config) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const publicPaths = new Set(['/', '/login', '/logout', '/health', '/favicon.svg', '/favicon.ico', '/liquidglass.js', '/jsqr.js', '/apple-touch-icon.png', '/icon-180.png', '/icon-512.png', '/manifest.webmanifest', '/settings', '/go', '/api/config', '/api/password', '/api/apps', '/api/mint']);
+    const isAppApi = /^\/api\/apps\/[^/]+$/.test(url.pathname);
+    // Do not turn probes for .env, Git metadata, or WordPress into login pages.
+    if (!publicPaths.has(url.pathname) && !isAppApi) return new Response('not found', { status: 404 });
     if (url.pathname === '/health') return new Response('ok');
     if (url.pathname === '/favicon.svg' || url.pathname === '/favicon.ico') {
       return new Response(FAVICON, { headers: { 'Content-Type': 'image/svg+xml; charset=utf-8', 'Cache-Control': 'public, max-age=86400' } });
@@ -1072,6 +1089,8 @@ export default {
     }
 
     if (url.pathname === '/login' && request.method === 'POST') {
+      const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+      if (limitedBucket('login', ip, 5, 10 * 60 * 1000)) return new Response('登录尝试过于频繁，请稍后再试', { status: 429 });
       const form = await request.formData();
       const key = String(form.get('key') ?? '');
       if (!(await verifyPassword(key, env))) return new Response(loginPage(), { status: 403, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
